@@ -34,13 +34,13 @@ jobs:
           cd /home/ec2-user/app
 
           # Pull latest changes
-          git reset --hard
-          git pull origin dev
+          git fetch origin
+          git reset --hard origin/${{ github.ref_name }}
 
           # Install new dependencies if any
           npm install
 
-          # Restart app (PM2 recommended) || pm2 start app/index.js --name app --update-env
+          # Restart app (PM2 recommended)
           pm2 reload app || pm2 start app/index.js --name app --update-env 
 
 
