@@ -31,7 +31,7 @@ jobs:
         port: 22
         script: |
           # Navigate to app folder
-          cd /home/ec2-user/app/app
+          cd /home/ec2-user/app/
 
           # Pull latest changes
           git reset --hard
