@@ -3,46 +3,61 @@ name: Blue-Green Deploy
 on:
   push:
     branches:
-      - main   # Blue
-      - dev    # Green
+      - main   # deploy to Blue
+      - dev    # deploy to Green
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout the repo
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      # Step 2: Set up Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
 
-      # Step 3: Optional local dependency install (not strictly needed)
-      - name: Install dependencies
-        run: npm install
+    - name: Install dependencies
+      run: npm install
 
-      # Step 4: Deploy to EC2
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ github.ref_name == 'main' && secrets.EC2_HOST_BLUE || secrets.EC2_HOST_GREEN }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          script: |
-            # Navigate to app folder
-            cd /home/ec2-user/app
+    - name: Copy app to EC2
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          # Navigate to app folder
+          cd /home/ec2-user/app
 
-            # Fetch and reset branch to ensure latest code
-            git fetch origin
-            git reset --hard origin/${{ github.ref_name }}
+          # Pull latest changes
+          git reset --hard
+          git pull origin dev
 
-            # Install/update dependencies
-            npm install
+          # Install new dependencies if any
+          npm install
 
-            # Reload or start app using PM2 (zero-downtime)
-            pm2 reload app || pm2 start app/index.js --name app --update-env
+          # Restart app (PM2 recommended) || pm2 start app/index.js --name app --update-env
+          pm2 reload app/index.js 
+
+
+  # # Navigate to app folder
+  #           cd /home/ec2-user/app
+
+  #           # Fetch and reset branch to ensure latest code
+  #           git fetch origin
+  #           git reset --hard origin/${{ github.ref_name }}
+
+  #           # Install/update dependencies
+  #           npm install
+
+  #           # Reload or start app using PM2 (zero-downtime)
+  #           pm2 reload app || pm2 start app/index.js --name app --update-env
+
+  #           # Show PM2 status (for debug)
+  #           pm2 status
+
+  #           # Optional: test app locally
