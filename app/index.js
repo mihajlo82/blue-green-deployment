@@ -8,7 +8,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/green', (req, res) => {
-  res.send('GReen route 321');
+  res.send('GReen gree route 321');
 });
 
 app.get('/test', (req, res) => {
