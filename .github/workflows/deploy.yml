@@ -1,0 +1,44 @@
+name: Blue-Green Deploy
+
+on:
+  push:
+    branches:
+      - main   # deploy to Blue
+      - dev    # deploy to Green
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Copy app to EC2
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          # Navigate to app folder
+          cd /home/ec2-user/app
+
+          # Pull latest changes
+          git reset --hard
+          git pull origin ${{ github.ref_name }}
+
+          # Install new dependencies if any
+          npm install
+
+          # Restart app (PM2 recommended)
+          pm2 restart app || pm2 start app/index.js --name app
