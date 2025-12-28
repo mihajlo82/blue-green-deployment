@@ -29,7 +29,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ github.ref_name == 'main' && secrets.EC2_HOST_BLUE || secrets.EC2_HOST_GREEN }}
+          host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
