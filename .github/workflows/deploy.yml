@@ -41,7 +41,7 @@ jobs:
           npm install
 
           # Restart app (PM2 recommended) || pm2 start app/index.js --name app --update-env
-          pm2 reload app/index.js 
+          pm2 reload app || pm2 start app/index.js --name app --update-env 
 
 
   # # Navigate to app folder
