@@ -31,7 +31,7 @@ jobs:
         port: 22
         script: |
           # Navigate to app folder
-          cd /home/ec2-user/app
+          cd /home/ec2-user/app/app
 
           # Pull latest changes
           git reset --hard
@@ -41,4 +41,4 @@ jobs:
           npm install
 
           # Restart app (PM2 recommended)
-          pm2 restart app || pm2 start app/index.js --name app
+          pm2 restart app || pm2 start index.js
