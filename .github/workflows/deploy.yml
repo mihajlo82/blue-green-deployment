@@ -80,7 +80,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Detect LIVE environment and set deployment target
+      # Step 4: Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # Step 5: Detect LIVE environment and set deployment target
       - name: Detect LIVE environment
         id: detect
         run: |
@@ -88,11 +96,14 @@ jobs:
           BLUE_TG_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:targetgroup/tg-blue/123abc"
           GREEN_TG_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:targetgroup/tg-green/456def"
           LISTENER_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:listener/app/blue-green-alb/1e87b3638acaa3aa"
-          BLUE_EC2_IP="13.218.44.113"
-          GREEN_EC2_IP="3.83.226.22"
+          BLUE_EC2_IP="x.x.x.x"
+          GREEN_EC2_IP="y.y.y.y"
 
           # Get current LIVE target group
-          LIVE_TG=$(aws elbv2 describe-listeners --listener-arns $LISTENER_ARN --query "Listeners[0].DefaultActions[0].ForwardConfig.TargetGroups[0].TargetGroupArn" --output text)
+          LIVE_TG=$(aws elbv2 describe-listeners \
+            --listener-arns $LISTENER_ARN \
+            --query "Listeners[0].DefaultActions[0].ForwardConfig.TargetGroups[0].TargetGroupArn" \
+            --output text)
 
           # Determine IDLE target group and EC2
           if [ "$LIVE_TG" = "$BLUE_TG_ARN" ]; then
@@ -106,7 +117,7 @@ jobs:
           echo "DEPLOY_TARGET=$DEPLOY_TARGET" >> $GITHUB_ENV
           echo "TARGET_EC2=$TARGET_EC2" >> $GITHUB_ENV
 
-      # Step 5: Copy code and deploy to IDLE EC2
+      # Step 6: Copy code and deploy to IDLE EC2
       - name: Deploy to IDLE EC2
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -117,7 +128,7 @@ jobs:
           source: "./*"
           target: "/home/ec2-user/app/"
 
-      # Step 6: Restart Node.js app on IDLE EC2
+      # Step 7: Restart Node.js app on IDLE EC2
       - name: Restart Node.js app
         uses: appleboy/ssh-action@v0.1.7
         with:
@@ -131,12 +142,12 @@ jobs:
             pm2 reload app || pm2 start app/index.js --name app --update-env
             pm2 status
 
-      # Step 7: Optional health check
+      # Step 8: Optional health check
       - name: Health check
         run: |
           curl http://${{ env.TARGET_EC2 }}:3000/health
 
-      # Step 8: Switch ALB traffic to the new environment
+      # Step 9: Switch ALB traffic to the new environment
       - name: Switch ALB traffic
         run: |
           aws elbv2 modify-listener \
