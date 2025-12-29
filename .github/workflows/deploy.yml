@@ -1,3 +1,58 @@
+# name: Blue-Green Deploy
+
+# on:
+#   push:
+#     branches:
+#       - main   # Blue
+#       - dev    # Green
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       # Step 1: Checkout the repo
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       # Step 2: Set up Node.js
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: 18
+
+#       # Step 3: Install dependencies locally (optional)
+#       - name: Install dependencies
+#         run: npm install
+
+#       # Step 4: Deploy to EC2
+#       - name: Deploy to EC2
+#         uses: appleboy/ssh-action@v0.1.7
+#         with:
+#           host: ${{ secrets.EC2_HOST }}
+#           username: ec2-user
+#           key: ${{ secrets.EC2_SSH_KEY }}
+#           port: 22
+#           script: |
+#             # Navigate to app folder
+#             cd /home/ec2-user/app
+
+#             # Pull latest code via SSH
+#             git fetch origin
+#             git reset --hard origin/${{ github.ref_name }}
+
+#             # Install/update dependencies
+#             npm install
+
+#             # Reload or start Node.js app with PM2
+#             pm2 reload app || pm2 start app/index.js --name app --update-env
+
+#             # Show PM2 status for verification
+#             pm2 status
+
+#             # Optional: test app locally
+#             curl http://localhost:3000
+
 name: Blue-Green Deploy
 
 on:
@@ -25,30 +80,65 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Deploy to EC2
-      - name: Deploy to EC2
+      # Step 4: Detect LIVE environment and set deployment target
+      - name: Detect LIVE environment
+        id: detect
+        run: |
+          # Set Blue/Green Target Group ARNs and EC2 IPs
+          BLUE_TG_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:targetgroup/tg-blue/123abc"
+          GREEN_TG_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:targetgroup/tg-green/456def"
+          LISTENER_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:listener/app/blue-green-alb/1e87b3638acaa3aa"
+          BLUE_EC2_IP="13.218.44.113"
+          GREEN_EC2_IP="3.83.226.22"
+
+          # Get current LIVE target group
+          LIVE_TG=$(aws elbv2 describe-listeners --listener-arns $LISTENER_ARN --query "Listeners[0].DefaultActions[0].ForwardConfig.TargetGroups[0].TargetGroupArn" --output text)
+
+          # Determine IDLE target group and EC2
+          if [ "$LIVE_TG" = "$BLUE_TG_ARN" ]; then
+            DEPLOY_TARGET=$GREEN_TG_ARN
+            TARGET_EC2=$GREEN_EC2_IP
+          else
+            DEPLOY_TARGET=$BLUE_TG_ARN
+            TARGET_EC2=$BLUE_EC2_IP
+          fi
+
+          echo "DEPLOY_TARGET=$DEPLOY_TARGET" >> $GITHUB_ENV
+          echo "TARGET_EC2=$TARGET_EC2" >> $GITHUB_ENV
+
+      # Step 5: Copy code and deploy to IDLE EC2
+      - name: Deploy to IDLE EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ env.TARGET_EC2 }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "./*"
+          target: "/home/ec2-user/app/"
+
+      # Step 6: Restart Node.js app on IDLE EC2
+      - name: Restart Node.js app
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ env.TARGET_EC2 }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            # Navigate to app folder
             cd /home/ec2-user/app
-
-            # Pull latest code via SSH
-            git fetch origin
-            git reset --hard origin/${{ github.ref_name }}
-
-            # Install/update dependencies
             npm install
-
-            # Reload or start Node.js app with PM2
             pm2 reload app || pm2 start app/index.js --name app --update-env
-
-            # Show PM2 status for verification
             pm2 status
 
-            # Optional: test app locally
-            curl http://localhost:3000
+      # Step 7: Optional health check
+      - name: Health check
+        run: |
+          curl http://${{ env.TARGET_EC2 }}:3000/health
+
+      # Step 8: Switch ALB traffic to the new environment
+      - name: Switch ALB traffic
+        run: |
+          aws elbv2 modify-listener \
+            --listener-arn $LISTENER_ARN \
+            --default-actions Type=forward,TargetGroupArn=${{ env.DEPLOY_TARGET }}
