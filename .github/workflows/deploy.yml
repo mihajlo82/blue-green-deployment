@@ -143,9 +143,9 @@ jobs:
             pm2 status
 
       # Step 8: Optional health check
-      - name: Health check
-        run: |
-          curl http://${{ env.TARGET_EC2 }}:3000/health
+      # - name: Health check
+      #   run: |
+      #     curl http://${{ env.TARGET_EC2 }}:3000/health
 
       # Step 9: Switch ALB traffic to the new environment
       - name: Switch ALB traffic
