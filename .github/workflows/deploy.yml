@@ -96,8 +96,8 @@ jobs:
           BLUE_TG_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:targetgroup/tg-blue/123abc"
           GREEN_TG_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:targetgroup/tg-green/456def"
           LISTENER_ARN="arn:aws:elasticloadbalancing:us-east-1:164941546775:listener/app/blue-green-alb/1e87b3638acaa3aa/3582dd8c5a5b6c33"
-          BLUE_EC2_IP="x.x.x.x"
-          GREEN_EC2_IP="y.y.y.y"
+          BLUE_EC2_IP="13.218.44.113"
+          GREEN_EC2_IP="3.83.226.22"
 
           # Get current LIVE target group
           LIVE_TG=$(aws elbv2 describe-listeners \
