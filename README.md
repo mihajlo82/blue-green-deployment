@@ -1,4 +1,4 @@
-# Blue-Green Deployment with Node.js, AWS EC2, and GitHub Actions
+# Blue-Green Deployment with Node.js, AWS EC2, ALB and GitHub Actions
 
 ## Project Overview
 
