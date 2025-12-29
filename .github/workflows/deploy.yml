@@ -99,6 +99,10 @@ jobs:
           BLUE_EC2_IP="13.218.44.113"
           GREEN_EC2_IP="3.83.226.22"
 
+          # Export to GITHUB_ENV for later steps
+          echo "LISTENER_ARN=$LISTENER_ARN" >> $GITHUB_ENV
+
+
           # Get current LIVE target group
           LIVE_TG=$(aws elbv2 describe-listeners \
             --listener-arns $LISTENER_ARN \
@@ -151,5 +155,5 @@ jobs:
       - name: Switch ALB traffic
         run: |
           aws elbv2 modify-listener \
-            --listener-arn $LISTENER_ARN \
+            --listener-arn ${{ env.LISTENER_ARN }} \
             --default-actions Type=forward,TargetGroupArn=${{ env.DEPLOY_TARGET }}
